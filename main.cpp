@@ -47,13 +47,13 @@ uint32_t kelvin; // initialisation kelvin
 #ifdef __AVR__
 #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
-#define NUM_LEDS 30
+#define NUM_LEDS 20
 #define DATA_PIN 6 // Défini le pin de la bande pixels ws2812 DATA_PIN = 6
 // Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, DATA_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel pixels(NUM_LEDS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 unsigned long tempoled = 0;
-const long intervalled = 12000; // delai entre les changements couleur led
-const long interval = 250;     // Change this value (ms)
+const long intervalled = 12700; // delai entre les changements couleur led
+const long interval = 250;      // Change this value (ms)
 int setWhitePointRed;
 int setWhitePointGrn;
 int setWhitePointBlu;
@@ -309,14 +309,13 @@ void ledoninterval(uint32_t i)
 }
 void couchersoleil()
 {
-  Serial.println(" CH- - Sunset ");
-  
   if (isunset <= 1353)
   {
     Nbpixel = 1;
-        // colorWipe(pixels.numPixels(), pixels.Color(0, 0, 0));
+    // colorWipe(pixels.numPixels(), pixels.Color(0, 0, 0));
+    Serial.print(" CH- - Sunset ");
     Serial.print(isunset);
-    Serial.print("/");
+    Serial.println("/");
     idxR = pgm_read_word_near(RGBs + isunset);
     idxG = pgm_read_word_near(RGBs + isunset + 1);
     idxB = pgm_read_word_near(RGBs + isunset + 2);
@@ -352,19 +351,18 @@ void couchersoleil()
       colorWipe(pixels.numPixels() / Nbpixel, pixels.Color(0, 0, 0));
     }
     ledoninterval(isunset);
+    isunset += 3;
     execol = 0;
     colorWipe(pixels.numPixels() / Nbpixel, pixels.Color(idxR / intensity, idxG / intensity, idxB / intensity));
-    isunset += 3;
   }
   fineffect = true;
 }
 void leversoleil()
 {
-  Serial.println(" CH+ - Sunrise ");
-  
-  if (isunrise >= 0)
+  if (isunrise >= 3)
   {
-
+    isunrise -= 3;
+    Serial.println(" CH+ - Sunrise ");
     Serial.print(isunrise);
     Serial.print("/");
     idxR = pgm_read_word_near(RGBs + isunrise);
@@ -403,7 +401,6 @@ void leversoleil()
     ledoninterval(isunrise);
     execol = 0;
     colorWipe(pixels.numPixels() / Nbpixel, pixels.Color(idxR / intensity, idxG / intensity, idxB / intensity));
-    isunrise -= 3;
   }
   fineffect = true;
 }
@@ -609,7 +606,7 @@ void luneimage()
   SunTime24h(toLocal(sunrisecal));                                                                      // conversion en h et m locale
   Heurelever = hourscal;                                                                                // recupere l'heure convertie
   minutelever = minutescal;                                                                             // recupere minutes convertie
-  Serial.print("Sunset cal:  ");
+  Serial.print("Sunset/rise calculation:  ");
   SunTime24h(toLocal(sunsetcal));
   heurecoucher = hourscal;
   minutecoucher = minutescal;
@@ -671,7 +668,7 @@ void luneimage()
       illuminamoon = 90;
     }
   }
-  Serial.println("lunephase :");
+  Serial.println("Affichage de la phase de la lune:");
 }
 // display time, date
 void display() // heure page 0
@@ -719,24 +716,24 @@ void commandeffect()
     effect = "leversoleil";
     fineffect = false;
   }
-  else if ((hour(t) * 100 + minute(t) >= heurecoucher * 100 + minutecoucher - 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher ))
-  {//si 2h avant heure coucher et si heure coucher
+  else if ((hour(t) * 100 + minute(t) >= heurecoucher * 100 + minutecoucher - 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher))
+  { // si 2h avant heure coucher et si heure coucher
     effect = "couchersoleil";
     fineffect = false;
   }
   else if ((hour(t) * 100 + minute(t) > Heurelever * 100 + minutelever + 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher - 200))
-  {//si 2h avant heure coucher et si 2h apres heure lever
+  { // si 2h avant heure coucher et si 2h apres heure lever
     effect = "jours";
     fineffect = false;
   }
   else if ((hour(t) * 100 + minute(t) <= Heurelever * 100 + minutelever) || (hour(t) * 100 + minute(t) > heurecoucher * 100 + minutecoucher))
-  { //si avant heure lever ou si apres heure coucher
+  { // si avant heure lever ou si apres heure coucher
     effect = "lune";
     fineffect = false;
   }
   if ((ModeAuto == 1) && (fineffect == false))
   {
-    Serial.println("Mode Auto");
+    //Serial.println("Mode Auto"); debug du passage en auto vers manuel
     if (effect == "StandBye")
     {
       fineffect = true;
@@ -812,8 +809,6 @@ void pmenupush(void *ptr) // traitement page 0
     {
       led();
     }
-
-    Serial.println("Affichage Menu");
   }
 }
 void reglageheurepop(void *ptr)
