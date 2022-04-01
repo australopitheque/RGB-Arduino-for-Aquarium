@@ -52,7 +52,7 @@ uint32_t kelvin; // initialisation kelvin
 // Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, DATA_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel pixels(NUM_LEDS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 unsigned long tempoled = 0;
-const long intervalled = 8000; // delai changement couleur led
+const long intervalled = 12000; // delai entre les changements couleur led
 const long interval = 250;     // Change this value (ms)
 int setWhitePointRed;
 int setWhitePointGrn;
