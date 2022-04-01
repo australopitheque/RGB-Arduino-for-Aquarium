@@ -52,7 +52,7 @@ uint32_t kelvin; // initialisation kelvin
 // Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, DATA_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel pixels(NUM_LEDS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 unsigned long tempoled = 0;
-const long intervalled = 4000; // delai changement couleur led
+const long intervalled = 8000; // delai changement couleur led
 const long interval = 250;     // Change this value (ms)
 int setWhitePointRed;
 int setWhitePointGrn;
@@ -310,16 +310,17 @@ void ledoninterval(uint32_t i)
 void couchersoleil()
 {
   Serial.println(" CH- - Sunset ");
-  isunset += 3;
+  
   if (isunset <= 1353)
   {
     Nbpixel = 1;
-    // colorWipe(pixels.numPixels(), pixels.Color(0, 0, 0));
+        // colorWipe(pixels.numPixels(), pixels.Color(0, 0, 0));
     Serial.print(isunset);
     Serial.print("/");
     idxR = pgm_read_word_near(RGBs + isunset);
     idxG = pgm_read_word_near(RGBs + isunset + 1);
     idxB = pgm_read_word_near(RGBs + isunset + 2);
+
     if (isunset == 1200)
     {
       execol = 0;
@@ -353,13 +354,14 @@ void couchersoleil()
     ledoninterval(isunset);
     execol = 0;
     colorWipe(pixels.numPixels() / Nbpixel, pixels.Color(idxR / intensity, idxG / intensity, idxB / intensity));
+    isunset += 3;
   }
   fineffect = true;
 }
 void leversoleil()
 {
   Serial.println(" CH+ - Sunrise ");
-  isunrise -= 3;
+  
   if (isunrise >= 0)
   {
 
@@ -401,6 +403,7 @@ void leversoleil()
     ledoninterval(isunrise);
     execol = 0;
     colorWipe(pixels.numPixels() / Nbpixel, pixels.Color(idxR / intensity, idxG / intensity, idxB / intensity));
+    isunrise -= 3;
   }
   fineffect = true;
 }
