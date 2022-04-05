@@ -28,6 +28,11 @@ int Heurelever;
 int minutelever;
 int heurecoucher;
 int minutecoucher;
+int minutescalc; // heure et minute corrigé pour l'aube
+int Heureleverc;
+int minuteleverc;
+int heurecoucherc;
+int minutecoucherc;
 byte oldday;
 byte oldminute;
 
@@ -52,7 +57,7 @@ uint32_t kelvin; // initialisation kelvin
 // Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, DATA_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel pixels(NUM_LEDS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 unsigned long tempoled = 0;
-const long intervalled = 12700; // delai entre les changements couleur led
+const long intervalled = 18000; // delai entre les changements couleur led
 const long interval = 250;      // Change this value (ms)
 int setWhitePointRed;
 int setWhitePointGrn;
@@ -273,6 +278,8 @@ void journee()
 {
   Nbpixel = 1;
   Serial.println(" VOL+ - Journée  ");
+  isunrise = 1356; // reinitialisation des compteurs des lever coucher
+  isunset = 0;
   colorWipe(pixels.numPixels() / Nbpixel, pixels.Color(255, 249, 253)); // 6500K
   fineffect = true;
 }
@@ -404,6 +411,105 @@ void leversoleil()
   }
   fineffect = true;
 }
+// gestion des evenements
+// calcul aube/crepuscule
+void crepusculeaube()
+{
+  float centiemeaube = Heurelever + (minutelever / 60) - 0.25;      // decallage de l'horaire de -0.25 heure, aube
+  float centiemecoucher = heurecoucher + (minutecoucher / 60) + 0.50; // decallage de l'horaire de +0.5 heure, crepuscule
+  Heureleverc = floor(centiemeaube);
+  minuteleverc = (centiemeaube - Heureleverc) * 60;
+  minuteleverc = minuteleverc % 60;
+  heurecoucherc = floor(centiemecoucher);
+  minutecoucherc = (centiemecoucher - heurecoucherc) * 60;
+  minutecoucherc = minutecoucherc % 60;
+}
+void commandeffect()
+{
+  crepusculeaube();
+  time_t t = myRTC.get();
+  if ((hour(t) * 100 + minute(t) >= Heureleverc * 100 + minuteleverc) && (hour(t) * 100 + minute(t) < Heurelever * 100 + minutelever + 200))
+  { // test si heure lever -.5 (aube) et si 2h apres lever
+    effect = "leversoleil";
+    fineffect = false;
+  }
+  else if ((hour(t) * 100 + minute(t) >= heurecoucher * 100 + minutecoucher - 200) && (hour(t) * 100 + minute(t) < heurecoucherc * 100 + minutecoucherc))
+  { // si 1h avant heure coucher et si heure coucher +.5 (crepuscule)
+    effect = "couchersoleil";
+    fineffect = false;
+  }
+  else if ((hour(t) * 100 + minute(t) > Heurelever * 100 + minutelever + 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher - 200))
+  { // si 2h avant heure coucher et si 2h apres heure lever
+    effect = "jours";
+    fineffect = false;
+  }
+  else if ((hour(t) * 100 + minute(t) <= Heureleverc * 100 + minuteleverc) || (hour(t) * 100 + minute(t) > heurecoucherc * 100 + minutecoucherc))
+  { // si avant heure lever ou si apres heure coucher
+    effect = "lune";
+    fineffect = false;
+  }
+  if ((ModeAuto == 1) && (fineffect == false))
+  {
+    // Serial.println("Mode Auto"); debug du passage en auto vers manuel
+    if (effect == "StandBye")
+    {
+      fineffect = true;
+    }
+    if (effect == "jours")
+    {
+      execol = 0;
+      journee();
+      if (fineffect == true)
+      {
+        effect = "StandBye";
+      }
+    }
+    if (effect == "lune")
+    {
+      if (millis() - tempoled > intervalled)
+      {                      // si compteur atteind 1 sec
+        tempoled = millis(); // reinitialise le compteur
+        execol = 0;
+        nuitlune();
+        if (fineffect == true)
+        {
+          effect = "StandBye";
+          fineffect = false;
+        }
+      }
+    }
+    if (effect == "leversoleil")
+    {
+      if (millis() - tempoled > intervalled)
+      {                      // si compteur atteind 1 sec
+        tempoled = millis(); // reinitialise le compteur
+        execol = 0;
+        Nbpixel = 1;
+        leversoleil();
+        if (fineffect == true)
+        {
+          effect = "jours";
+          fineffect = false;
+        }
+      }
+    }
+    if (effect == "couchersoleil")
+    {
+      if (millis() - tempoled > intervalled)
+      {                      // si compteur atteind 1 sec
+        tempoled = millis(); // reinitialise le compteur
+        execol = 0;
+        couchersoleil();
+        if (fineffect == true)
+        {
+          fineffect = false;
+          effect = "lune";
+        }
+      }
+    }
+  }
+}
+
 // Envoyer la couleur à la bande LED RGB mode manuel
 void led() // color led manuel
 {
@@ -707,91 +813,6 @@ void display() // heure page 0
 // traitement des pages/boutons surveillés
 /*
  */
-void commandeffect()
-{
-
-  time_t t = myRTC.get();
-  if ((hour(t) * 100 + minute(t) >= Heurelever * 100 + minutelever) && (hour(t) * 100 + minute(t) < Heurelever * 100 + minutelever + 200))
-  { // test si heure lever et si 2h apres lever
-    effect = "leversoleil";
-    fineffect = false;
-  }
-  else if ((hour(t) * 100 + minute(t) >= heurecoucher * 100 + minutecoucher - 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher))
-  { // si 2h avant heure coucher et si heure coucher
-    effect = "couchersoleil";
-    fineffect = false;
-  }
-  else if ((hour(t) * 100 + minute(t) > Heurelever * 100 + minutelever + 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher - 200))
-  { // si 2h avant heure coucher et si 2h apres heure lever
-    effect = "jours";
-    fineffect = false;
-  }
-  else if ((hour(t) * 100 + minute(t) <= Heurelever * 100 + minutelever) || (hour(t) * 100 + minute(t) > heurecoucher * 100 + minutecoucher))
-  { // si avant heure lever ou si apres heure coucher
-    effect = "lune";
-    fineffect = false;
-  }
-  if ((ModeAuto == 1) && (fineffect == false))
-  {
-    //Serial.println("Mode Auto"); debug du passage en auto vers manuel
-    if (effect == "StandBye")
-    {
-      fineffect = true;
-    }
-    if (effect == "jours")
-    {
-      execol = 0;
-      journee();
-      if (fineffect == true)
-      {
-        effect = "StandBye";
-      }
-    }
-    if (effect == "lune")
-    {
-      if (millis() - tempoled > intervalled)
-      {                      // si compteur atteind 1 sec
-        tempoled = millis(); // reinitialise le compteur
-        execol = 0;
-        nuitlune();
-        if (fineffect == true)
-        {
-          effect = "StandBye";
-          fineffect = false;
-        }
-      }
-    }
-    if (effect == "leversoleil")
-    {
-      if (millis() - tempoled > intervalled)
-      {                      // si compteur atteind 1 sec
-        tempoled = millis(); // reinitialise le compteur
-        execol = 0;
-        Nbpixel = 1;
-        leversoleil();
-        if (fineffect == true)
-        {
-          effect = "jours";
-          fineffect = false;
-        }
-      }
-    }
-    if (effect == "couchersoleil")
-    {
-      if (millis() - tempoled > intervalled)
-      {                      // si compteur atteind 1 sec
-        tempoled = millis(); // reinitialise le compteur
-        execol = 0;
-        couchersoleil();
-        if (fineffect == true)
-        {
-          fineffect = false;
-          effect = "lune";
-        }
-      }
-    }
-  }
-}
 void pmenupush(void *ptr) // traitement page 0
 {
   if (millis() - roulementPrecedent1 > refreshSwitch)
