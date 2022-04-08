@@ -57,7 +57,7 @@ uint32_t kelvin; // initialisation kelvin
 // Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUM_LEDS, DATA_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel pixels(NUM_LEDS, DATA_PIN, NEO_GRB + NEO_KHZ800);
 unsigned long tempoled = 0;
-const long intervalled = 18000; // delai entre les changements couleur led
+const long intervalled = 19000; // delai entre les changements couleur led 19 sec
 const long interval = 250;      // Change this value (ms)
 int setWhitePointRed;
 int setWhitePointGrn;
@@ -83,8 +83,8 @@ DS3232RTC myRTC;
 const char *tableauDesJours[] = {"Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"};
 
 //**** Variable temperature
-float Celcius = 0;
-float Fahrenheit = 0;
+float Celcius = 0.0;
+float Fahrenheit = 0.0;
 
 // variable moon
 String nfm = ""; // days to next full moon
@@ -415,8 +415,8 @@ void leversoleil()
 // calcul aube/crepuscule
 void crepusculeaube()
 {
-  float centiemeaube = Heurelever + (minutelever / 60) - 0.25;      // decallage de l'horaire de -0.25 heure, aube
-  float centiemecoucher = heurecoucher + (minutecoucher / 60) + 0.50; // decallage de l'horaire de +0.5 heure, crepuscule
+  float centiemeaube = (Heurelever + (minutelever / 60.0)) - 0.25;        // decallage de l'horaire de -0.25 heure, aube
+  float centiemecoucher = (heurecoucher + (minutecoucher / 60.0))+ 0.50 ; // decallage de l'horaire de +0.75 heure, crepuscule
   Heureleverc = floor(centiemeaube);
   minuteleverc = (centiemeaube - Heureleverc) * 60;
   minuteleverc = minuteleverc % 60;
@@ -428,22 +428,22 @@ void commandeffect()
 {
   crepusculeaube();
   time_t t = myRTC.get();
-  if ((hour(t) * 100 + minute(t) >= Heureleverc * 100 + minuteleverc) && (hour(t) * 100 + minute(t) < Heurelever * 100 + minutelever + 200))
+ if ((hour(t) * 60 + minute(t) >= Heureleverc * 60 + minuteleverc) && (hour(t) * 60 + minute(t) < Heurelever * 60 + minutelever + 120))
   { // test si heure lever -.5 (aube) et si 2h apres lever
     effect = "leversoleil";
     fineffect = false;
   }
-  else if ((hour(t) * 100 + minute(t) >= heurecoucher * 100 + minutecoucher - 200) && (hour(t) * 100 + minute(t) < heurecoucherc * 100 + minutecoucherc))
+  else if ((hour(t) * 60 + minute(t) >= heurecoucher * 60 + minutecoucher - 120) && (hour(t) * 60 + minute(t) <= heurecoucherc * 60 + minutecoucherc))
   { // si 1h avant heure coucher et si heure coucher +.5 (crepuscule)
     effect = "couchersoleil";
     fineffect = false;
   }
-  else if ((hour(t) * 100 + minute(t) > Heurelever * 100 + minutelever + 200) && (hour(t) * 100 + minute(t) < heurecoucher * 100 + minutecoucher - 200))
+  else if ((hour(t) * 60 + minute(t) > Heurelever * 60 + minutelever + 120) && (hour(t) * 60 + minute(t) < heurecoucher * 60 + minutecoucher - 120) && ((isunrise == 0) || (isunset == 1356)))
   { // si 2h avant heure coucher et si 2h apres heure lever
     effect = "jours";
     fineffect = false;
   }
-  else if ((hour(t) * 100 + minute(t) <= Heureleverc * 100 + minuteleverc) || (hour(t) * 100 + minute(t) > heurecoucherc * 100 + minutecoucherc))
+  else if ((hour(t) * 60 + minute(t) <= Heureleverc * 60 + minuteleverc) || (hour(t) * 60 + minute(t) > heurecoucherc * 60 + minutecoucherc))
   { // si avant heure lever ou si apres heure coucher
     effect = "lune";
     fineffect = false;
@@ -486,11 +486,6 @@ void commandeffect()
         execol = 0;
         Nbpixel = 1;
         leversoleil();
-        if (fineffect == true)
-        {
-          effect = "jours";
-          fineffect = false;
-        }
       }
     }
     if (effect == "couchersoleil")
@@ -500,11 +495,6 @@ void commandeffect()
         tempoled = millis(); // reinitialise le compteur
         execol = 0;
         couchersoleil();
-        if (fineffect == true)
-        {
-          fineffect = false;
-          effect = "lune";
-        }
       }
     }
   }
@@ -859,7 +849,7 @@ void p2PopCallback(void *ptr) // traitement page 2
 {
   // affichage de l'heure et date du DS3231 sur la page 2
   byte Jours;
-  Jours = RTC.readRTC(3);
+  Jours = myRTC.readRTC(3);
   time_t t = myRTC.get();
   jsemainesetting.setText(tableauDesJours[Jours]);
   heuresetting.setValue(hour(t));
@@ -901,10 +891,10 @@ void enrsettingPopCallback(void *ptr) // traitement bouton enr de la page 2
     tm.Minute = Minute;
     tm.Second = Seconde;
     t = makeTime(tm);
-    RTC.set(t);        // utiliser la valeur time_t pour s'assurer que le jour de la semaine correct est défini.
+    myRTC.set(t);      // utiliser la valeur time_t pour s'assurer que le jour de la semaine correct est défini.
     Serial.println(t); // debug
     setTime(t);
-    byte Joursemaine = RTC.readRTC(3);
+    byte Joursemaine = myRTC.readRTC(3);
     jsemainesetting.setText(tableauDesJours[Joursemaine]);
   }
 }
